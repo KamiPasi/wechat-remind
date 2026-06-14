@@ -17,8 +17,11 @@ from .store import ReminderStore
 def default_db_path() -> Path:
     raw = os.environ.get("WECHAT_REMIND_DB")
     if raw:
-        return Path(raw)
-    return Path.cwd() / "data" / "wechat_remind.sqlite3"
+        path = Path(raw)
+        if path.is_absolute():
+            return path
+        return Path(os.environ.get("WECHAT_REMIND_ENV_DIR", Path.cwd())) / path
+    return Path(os.environ.get("WECHAT_REMIND_ENV_DIR", Path.cwd())) / "data" / "wechat_remind.sqlite3"
 
 
 def default_timezone() -> str:

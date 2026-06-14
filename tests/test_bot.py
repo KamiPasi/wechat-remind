@@ -24,8 +24,15 @@ class FakeClient:
 class FakeAssistant:
     def __init__(self, decision):
         self.decision = decision
+        self.calls = []
 
     def interpret(self, message_text, now_local, timezone_name, owner_weixin_user_id, history=None):
+        self.calls.append(
+            {
+                "message_text": message_text,
+                "history": list(history or []),
+            }
+        )
         return self.decision
 
 
@@ -102,3 +109,33 @@ def test_non_owner_is_ignored(tmp_path):
     )
 
     assert client.sent == []
+
+
+def test_stale_conversation_history_is_not_sent_to_model(tmp_path):
+    store = ReminderStore(tmp_path / "bot.sqlite3")
+    store.save_account("bot@im.bot", "token", "https://base")
+    store.ensure_owner("owner@im.wechat", "ctx")
+    store.append_conversation_message("user", "提醒我喝水")
+    store.append_conversation_message("assistant", "什么时候提醒？")
+    with store._connect() as conn:
+        conn.execute(
+            "UPDATE conversation_messages SET created_at = ?",
+            (to_utc_iso(utc_now() - timedelta(hours=2)),),
+        )
+
+    account = store.get_account()
+    client = FakeClient()
+    assistant = FakeAssistant(AssistantDecision("reply", {}, "ok"))
+    bot = ReminderBot(store, client, assistant, conversation_idle_reset_seconds=3600)
+
+    bot.handle_message(
+        account,
+        {
+            "message_id": 3,
+            "from_user_id": "owner@im.wechat",
+            "context_token": "ctx",
+            "item_list": [{"type": 1, "text_item": {"text": "10分钟后"}}],
+        },
+    )
+
+    assert assistant.calls[0]["history"] == []

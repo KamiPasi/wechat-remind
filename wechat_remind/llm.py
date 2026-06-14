@@ -170,8 +170,15 @@ class ReminderAssistant:
     @classmethod
     def from_env(cls) -> "ReminderAssistant":
         load_env_file(override=True)
+        env_dir = Path(os.environ.get("WECHAT_REMIND_ENV_DIR", Path.cwd()))
         prompt_path = os.environ.get("BOT_SYSTEM_PROMPT_PATH")
-        return cls(custom_prompt_path=Path(prompt_path) if prompt_path else None)
+        if prompt_path:
+            path = Path(prompt_path)
+            if not path.is_absolute():
+                path = env_dir / path
+        else:
+            path = env_dir / "prompts" / "custom.md"
+        return cls(custom_prompt_path=path)
 
     def _client(self) -> Any:
         if self.client is not None:

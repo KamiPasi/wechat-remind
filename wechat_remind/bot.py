@@ -71,6 +71,7 @@ class ReminderBot:
         timezone_name: str = "Asia/Shanghai",
         poll_timeout_seconds: float = 35.0,
         schedule_interval_seconds: float = 10.0,
+        conversation_idle_reset_seconds: int = 3600,
         ignore_unauthorized: bool = True,
     ) -> None:
         self.store = store
@@ -80,6 +81,7 @@ class ReminderBot:
         self.local_tz = load_timezone(timezone_name)
         self.poll_timeout_seconds = poll_timeout_seconds
         self.schedule_interval_seconds = schedule_interval_seconds
+        self.conversation_idle_reset_seconds = conversation_idle_reset_seconds
         self.ignore_unauthorized = ignore_unauthorized
         self._stop = threading.Event()
 
@@ -168,6 +170,7 @@ class ReminderBot:
 
         now_local = datetime.now(self.local_tz)
         try:
+            self.store.reset_conversation_if_idle(self.conversation_idle_reset_seconds)
             history = self.store.list_conversation_messages(limit=8)
             self.store.append_conversation_message("user", text)
             decision = self.assistant.interpret(text, now_local, self.timezone_name, from_user_id, history=history)

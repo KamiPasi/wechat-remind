@@ -1,7 +1,7 @@
 import json
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -463,6 +463,35 @@ class ReminderStore:
             for row in rows
         ]
         return list(reversed(items))
+
+    def clear_conversation_messages(self) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM conversation_messages")
+
+    def reset_conversation_if_idle(
+        self,
+        max_idle_seconds: int = 3600,
+        now_utc: Optional[datetime] = None,
+    ) -> bool:
+        now = now_utc or utc_now()
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        cutoff = now.astimezone(timezone.utc) - timedelta(seconds=max_idle_seconds)
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT created_at
+                FROM conversation_messages
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            if not row:
+                return False
+            if from_iso(row["created_at"]) > cutoff:
+                return False
+            conn.execute("DELETE FROM conversation_messages")
+            return True
 
     def add_model_tool_log(
         self,

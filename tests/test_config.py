@@ -44,3 +44,13 @@ def test_load_env_file_can_override_existing(tmp_path, monkeypatch):
     load_env_file(env_file, override=True)
 
     assert os.environ["OPENAI_MODEL"] == "gpt-5.5"
+
+
+def test_load_env_file_sets_env_dir(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENAI_MODEL=gpt-5.5\n", encoding="utf-8")
+    monkeypatch.delenv("WECHAT_REMIND_ENV_DIR", raising=False)
+
+    load_env_file(env_file)
+
+    assert os.environ["WECHAT_REMIND_ENV_DIR"] == str(tmp_path.resolve())

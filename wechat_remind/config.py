@@ -46,6 +46,10 @@ def load_env_file(path: Optional[Path] = None, override: bool = False) -> Option
     if env_path is None:
         return None
 
+    env_dir = str(env_path.resolve().parent)
+    if override or "WECHAT_REMIND_ENV_DIR" not in os.environ:
+        os.environ["WECHAT_REMIND_ENV_DIR"] = env_dir
+
     values = parse_env_lines(env_path.read_text(encoding="utf-8").splitlines())
     for key, value in values.items():
         if override or key not in os.environ:

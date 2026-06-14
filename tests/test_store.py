@@ -58,6 +58,25 @@ def test_conversation_history_is_limited_and_ordered(tmp_path):
     ]
 
 
+def test_conversation_history_resets_after_idle(tmp_path):
+    store = ReminderStore(tmp_path / "bot.sqlite3")
+    now = datetime.now(timezone.utc)
+
+    store.append_conversation_message("user", "提醒我喝水")
+    with store._connect() as conn:
+        conn.execute(
+            "UPDATE conversation_messages SET created_at = ?",
+            ((now - timedelta(hours=2)).isoformat(),),
+        )
+
+    assert store.reset_conversation_if_idle(max_idle_seconds=3600, now_utc=now)
+    assert store.list_conversation_messages() == []
+
+    store.append_conversation_message("user", "提醒我喝水")
+    assert not store.reset_conversation_if_idle(max_idle_seconds=3600, now_utc=now)
+    assert len(store.list_conversation_messages()) == 1
+
+
 def test_model_tool_logs_are_persisted(tmp_path):
     store = ReminderStore(tmp_path / "bot.sqlite3")
 
